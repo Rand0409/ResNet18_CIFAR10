@@ -1,1 +1,1 @@
-EPOCH=20,best_acc= 87.740%
+EPOCH=2,best_acc= 51.220%

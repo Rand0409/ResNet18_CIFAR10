@@ -1,22 +1,33 @@
+from numpy import short
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchsummary import summary
+
+
+N = 5
+B_i = [3, 2, 2, 2, 2]            # Number of blocks in each layer
+C_i = [21, 42, 84, 168, 336]     # Number of channels in Residual Layer i
+F_i = [3, 3, 3, 3, 3]            # Conv. kernel size in Residual Layer i
+K_i = [1, 1, 1, 1, 1]            # Shortcut kernel size
+P = 2                            # Average pool kernel size
+
 
 class ResidualBlock(nn.Module):
-    def __init__(self, inchannel, outchannel, stride=1):
+    def __init__(self, in_channel, out_channel, kernel_size, shortcut_kernel_size, stride=1):
         super(ResidualBlock, self).__init__()
         self.left = nn.Sequential(
-            nn.Conv2d(inchannel, outchannel, kernel_size=3, stride=stride, padding=1, bias=False),
-            nn.BatchNorm2d(outchannel),
+            nn.Conv2d(in_channel, out_channel, kernel_size=kernel_size, stride=stride, padding=1, bias=False),
+            nn.BatchNorm2d(out_channel),
             nn.ReLU(inplace=True),
-            nn.Conv2d(outchannel, outchannel, kernel_size=3, stride=1, padding=1, bias=False),
-            nn.BatchNorm2d(outchannel)
+            nn.Conv2d(out_channel, out_channel, kernel_size=kernel_size, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(out_channel)
         )
         self.shortcut = nn.Sequential()
-        if stride != 1 or inchannel != outchannel:
+        if stride != 1 or in_channel != out_channel:
             self.shortcut = nn.Sequential(
-                nn.Conv2d(inchannel, outchannel, kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(outchannel)
+                nn.Conv2d(in_channel, out_channel, kernel_size=shortcut_kernel_size, stride=stride, bias=False),
+                nn.BatchNorm2d(out_channel)
             )
 
     def forward(self, x):
@@ -26,25 +37,31 @@ class ResidualBlock(nn.Module):
         return out
 
 class ResNet(nn.Module):
-    def __init__(self, ResidualBlock, num_classes=10):
+    def __init__(self, ResidualBlock, C_i, B_i, F_i, K_i, num_classes=10):
         super(ResNet, self).__init__()
-        self.inchannel = 32
+        # First layer
+        self.inchannel = C_i[0]#C1
         self.conv1 = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=7, stride=1, padding=1, bias=False),
-            nn.BatchNorm2d(32),
+            nn.Conv2d(3, C_i[0], kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(C_i[0]), #bn(#channel)
             nn.ReLU(),
         )
-        self.layer1 = self.make_layer(ResidualBlock, 32,  2, stride=1)
-        self.layer2 = self.make_layer(ResidualBlock, 64, 2, stride=2)
-        self.layer3 = self.make_layer(ResidualBlock, 128, 2, stride=2)
-        self.layer4 = self.make_layer(ResidualBlock, 256, 2, stride=2)
-        self.fc = nn.Linear(256, num_classes)
+        self.layer1 = self.make_layer(ResidualBlock, C_i[0], B_i[0], F_i[0], K_i[0], stride=1)
+        self.layer2 = self.make_layer(ResidualBlock, C_i[1], B_i[1], F_i[1], K_i[1], stride=2)
+        self.layer3 = self.make_layer(ResidualBlock, C_i[2], B_i[2], F_i[2], K_i[2], stride=2)
+        self.layer4 = self.make_layer(ResidualBlock, C_i[3], B_i[3], F_i[3], K_i[3], stride=2)
+        self.layer5 = self.make_layer(ResidualBlock, C_i[4], B_i[4], F_i[4], K_i[4], stride=2)
 
-    def make_layer(self, block, channels, num_blocks, stride):
-        strides = [stride] + [1] * (num_blocks - 1)   #strides=[1,1]
+        self.fc = nn.Sequential(
+            nn.Dropout(p=0.5),
+            nn.Linear(C_i[4], num_classes)
+        )
+
+    def make_layer(self, block, channels, num_blocks, kernel_size, shortcut_kernel_size, stride):
+        strides = [stride] + [1] * (num_blocks - 1)   #strides=[stride,1,...]
         layers = []
         for stride in strides:
-            layers.append(block(self.inchannel, channels, stride))
+            layers.append(block(self.inchannel, channels, kernel_size, shortcut_kernel_size, stride))
             self.inchannel = channels
         return nn.Sequential(*layers)
 
@@ -54,10 +71,12 @@ class ResNet(nn.Module):
         out = self.layer2(out)
         out = self.layer3(out)
         out = self.layer4(out)
-        out = F.avg_pool2d(out, 4)
+        out = self.layer5(out)
+        out = F.avg_pool2d(out, P)
         out = out.view(out.size(0), -1)
         out = self.fc(out)
         return out
+
 
 class Regularization(torch.nn.Module):
     def __init__(self,model,weight_decay,p=2):
@@ -127,11 +146,11 @@ class Regularization(torch.nn.Module):
 
 
 def resnet18():
+    return ResNet(ResidualBlock, C_i, B_i, F_i, K_i)
 
-    return ResNet(ResidualBlock)
-
+# calculate the parameters
 if __name__ == "__main__":
-    from torchsummary import summary
+    
     net = resnet18()
     net.cuda()
     summary(net,(3,32,32))

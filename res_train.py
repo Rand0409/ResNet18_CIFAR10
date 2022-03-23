@@ -28,15 +28,15 @@ parser.add_argument('--r1', default=0.3, type=float, help='aspect of erasing are
 args = parser.parse_args()
 
 # 超参数设置
-EPOCH = 20  #遍历数据集次数
+EPOCH = 2  #遍历数据集次数
 pre_epoch = 0  # 定义已经遍历数据集的次数
-BATCH_SIZE = 32      #批处理尺寸(batch_size)
+BATCH_SIZE = 128      #批处理尺寸(batch_size)
 LR = 0.01        #学习率
 PATH = "best_entire_model.pt"
 
 # L1参数
-weight_decay = 0.0000000001
-p = 1
+# weight_decay = 0.0000000001
+# p = 1
 
 # 准备数据集并预处理
 transform_train = transforms.Compose([
@@ -71,10 +71,10 @@ net = resnet18().to(device)
 # 定义损失函数和优化方式
 criterion = nn.CrossEntropyLoss()  #损失函数为交叉熵，多用于多分类问题
 #optimizer = optim.SGD(net.parameters(), lr=LR, momentum=0.9, weight_decay=5e-4) #优化方式为mini-batch momentum-SGD，并采用L2正则化（权重衰减）
-#optimizer = optim.Adam(net.parameters(), lr=LR, betas=(0.9,0.999),eps=1e-08, weight_decay=0.000001) #L2 norm with non 0 weight_decay
+optimizer = optim.Adam(net.parameters(), lr=LR, betas=(0.9,0.999),eps=1e-08, weight_decay=0) #L2 norm with non 0 weight_decay
 
-optimizer = optim.Adam(net.parameters(), lr=LR)  # for L1 norm
-reg_loss=Regularization(net, weight_decay, p=1).to(device) # for L1 norm
+# optimizer = optim.Adam(net.parameters(), lr=LR)  # for L1 norm
+# reg_loss=Regularization(net, weight_decay, p=1).to(device) # for L1 norm
 
 # create lr_list
 lr_list = []
@@ -113,7 +113,7 @@ if __name__ == "__main__":
                 lr_list.append(optimizer.state_dict()['param_groups'][0]['lr'])
 
                 for i, data in enumerate(trainloader, 0):
-                    '''# 准备数据
+                    # 准备数据
                     length = len(trainloader)
                     inputs, labels = data
                     inputs, labels = inputs.to(device), labels.to(device)
@@ -132,9 +132,9 @@ if __name__ == "__main__":
                     _, predicted = torch.max(outputs.data, 1)
                     total += labels.size(0)
                     correct += predicted.eq(labels.data).cpu().sum()
-                    '''
+                    
 
-                    # 添加L1 norm 
+                    '''# 添加L1 norm 
                     length = len(trainloader)
                     inputs, labels = data
                     inputs, labels = inputs.to(device), labels.to(device)
@@ -154,7 +154,7 @@ if __name__ == "__main__":
                     _, predicted = torch.max(outputs.data, 1)
                     total += labels.size(0)
                     correct += predicted.eq(labels.data).cpu().sum()
-                    
+                    '''
                     
 
 
@@ -243,5 +243,6 @@ if __name__ == "__main__":
             plt.title("LR")
             plt.xlabel('Epochs')
             plt.ylabel('LR')
-            
+
+            plt.savefig("F:\\Gitlocal\\ResNet\\Plot\\AccLoss.png")
             plt.show()

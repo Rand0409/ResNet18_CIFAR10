@@ -28,7 +28,7 @@ parser.add_argument('--r1', default=0.3, type=float, help='aspect of erasing are
 args = parser.parse_args()
 
 # 超参数设置
-EPOCH = 1  #遍历数据集次数
+EPOCH = 100  #遍历数据集次数
 pre_epoch = 0  # 定义已经遍历数据集的次数
 BATCH_SIZE = 128      #批处理尺寸(batch_size)
 LR = 0.01        #学习率
@@ -222,5 +222,6 @@ if __name__ == "__main__":
             plt.title("LR")
             plt.xlabel('Epochs')
             plt.ylabel('LR')
-            
+
+            plt.savefig("F:\\Gitlocal\\ResNet\\Plot\\AccLoss.png")
             plt.show()
