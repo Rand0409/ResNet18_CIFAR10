@@ -28,7 +28,7 @@ parser.add_argument('--r1', default=0.3, type=float, help='aspect of erasing are
 args = parser.parse_args()
 
 # 超参数设置
-EPOCH = 5  #遍历数据集次数
+EPOCH = 20  #遍历数据集次数
 pre_epoch = 0  # 定义已经遍历数据集的次数
 BATCH_SIZE = 32      #批处理尺寸(batch_size)
 LR = 0.01        #学习率
